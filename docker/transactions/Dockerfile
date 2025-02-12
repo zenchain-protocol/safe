@@ -1,3 +1,3 @@
-FROM gnosispm/safe-transaction-service:v4.2.9
+FROM safeglobal/safe-transaction-service:latest
 
 COPY run_web.sh /app/run_web.sh

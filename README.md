@@ -257,7 +257,7 @@ import os
 from aws_cdk import core as cdk
 from aws_cdk import aws_ec2 as ec2
 
-from yearn_gnosis_safe.erigon_stack import ErigonEthereumStack
+from zen_safe.erigon_stack import ErigonEthereumStack
 
 app = cdk.App()
 
@@ -286,7 +286,8 @@ class AppStack(cdk.Stack):
             "ErigonMainnetStack",
             vpc=ec2.Vpc.from_lookup(self, "VPC", vpc_id=vpc_id),
             chain_name="mainnet",
-            instance_type=ec2.InstanceType("i3.2xlarge"), # Note the bigger instance to accommodate more data for mainnet
+            instance_type=ec2.InstanceType("i3.2xlarge"),
+            # Note the bigger instance to accommodate more data for mainnet
             **kwargs
         )
 
@@ -297,7 +298,6 @@ environment = cdk.Environment(
 )
 app_stack = AppStack(app, "ErigonApp", env=environment)
 cdk.Tags.of(app_stack).add("app", "Erigon Node")
-
 
 app.synth()
 

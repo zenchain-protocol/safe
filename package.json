@@ -1,0 +1,11 @@
+{
+  "name": "local-aws-cdk",
+  "version": "1.0.0",
+  "description": "A minimal package with aws-cdk as a dev dependency",
+  "main": "index.js",
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "aws-cdk": "^2.178.1"
+  }
+}
