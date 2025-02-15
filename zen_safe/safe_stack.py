@@ -9,6 +9,7 @@ from zen_safe.safe_client_gateway_stack import \
     SafeClientGatewayStack
 from zen_safe.safe_configuration_stack import \
     SafeConfigurationStack
+from zen_safe.safe_events_stack import SafeEventsStack
 from zen_safe.safe_shared_stack import SafeSharedStack
 from zen_safe.safe_transaction_stack import \
     SafeTransactionStack
@@ -27,7 +28,7 @@ class ZenSafeStack(Stack):
         mainnet_transaction_gateway_url: Optional[str] = None,
         testnet_transaction_gateway_url: Optional[str] = None,
         ssl_certificate_arn: Optional[str] = None,
-        **kwargs,  # Keep kwargs for now
+        **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
@@ -42,6 +43,8 @@ class ZenSafeStack(Stack):
             shared_stack=shared_stack,
             chain_name="mainnet",
             database=shared_stack.mainnet_database,
+            tx_mq=shared_stack.tx_mq,
+            events_mq=shared_stack.events_mq,
             alb=shared_stack.transaction_mainnet_alb,
             number_of_workers=4,
             ssl_certificate_arn=ssl_certificate_arn,
@@ -53,6 +56,7 @@ class ZenSafeStack(Stack):
             vpc=vpc,
             shared_stack=shared_stack,
             ssl_certificate_arn=ssl_certificate_arn,
+            client_gateway_url=client_gateway_url,
             config_service_uri=config_service_uri,
         )
 
@@ -63,8 +67,20 @@ class ZenSafeStack(Stack):
             shared_stack=shared_stack,
             ssl_certificate_arn=ssl_certificate_arn,
             client_gateway_url=client_gateway_url,
+            config_service_uri=config_service_uri,
             mainnet_transaction_gateway_url=mainnet_transaction_gateway_url,
             testnet_transaction_gateway_url=testnet_transaction_gateway_url,
+        )
+
+        events_stack = SafeEventsStack(
+            self,
+            "SafeEvents",
+            vpc=vpc,
+            shared_stack=shared_stack,
+            database=shared_stack.events_database,
+            events_mq=shared_stack.events_mq,
+            alb=shared_stack.events_alb,
+            ssl_certificate_arn=ssl_certificate_arn,
         )
 
         # Dependencies (CDK v2 often infers these, but keep for compatibility)
@@ -72,6 +88,7 @@ class ZenSafeStack(Stack):
         configuration_stack.node.add_dependency(shared_stack)
         transaction_mainnet_stack.node.add_dependency(shared_stack)
         client_gateway_stack.node.add_dependency(shared_stack)
+        events_stack.node.add_dependency(shared_stack)
 
         SafeUIStack(
             self,
@@ -80,7 +97,7 @@ class ZenSafeStack(Stack):
             shared_stack=shared_stack,
             subdomain_name=ui_subdomain,
             allowed_origins=[
-                "https://safe-client.mainnet.zenchain.io",
-                "https://safe-transaction.mainnet.zenchain.io"
+                "https://safe.zenchain.io",
+                "https://tx.safe.zenchain.io"
             ],
         )

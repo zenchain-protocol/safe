@@ -1,0 +1,1 @@
+FROM safeglobal/safe-events-service:latest

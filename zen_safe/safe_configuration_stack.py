@@ -24,6 +24,7 @@ class SafeConfigurationStack(Stack):
         shared_stack: SafeSharedStack,
         ssl_certificate_arn: Optional[str] = None,
         client_gateway_url: Optional[str] = None,
+        config_service_uri: Optional[str] = None,
         mainnet_transaction_gateway_url: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -31,6 +32,9 @@ class SafeConfigurationStack(Stack):
 
         if client_gateway_url is None:
             client_gateway_url = shared_stack.client_gateway_alb.load_balancer_dns_name
+
+        if config_service_uri is None:
+            config_service_uri = f"http://{shared_stack.config_alb.load_balancer_dns_name}"
 
         if mainnet_transaction_gateway_url is None:
             mainnet_transaction_gateway_url = f"http://{shared_stack.transaction_mainnet_alb.load_balancer_dns_name}"
@@ -73,6 +77,10 @@ class SafeConfigurationStack(Stack):
                 "DEFAULT_FILE_STORAGE": "django.core.files.storage.FileSystemStorage",
                 "CGW_URL": client_gateway_url,
                 "TRANSACTION_SERVICE_MAINNET_URI": mainnet_transaction_gateway_url,
+                "CSRF_TRUSTED_ORIGINS": "https://safe.zenchain.io",
+                "MEDIA_URL": f"{config_service_uri}/media/",
+                "DOCKER_WEB_VOLUME": ".:/app",
+                "FORCE_SCRIPT_NAME": "/cfg/"
             },
             "secrets": {
                 "SECRET_KEY": ecs.Secret.from_secrets_manager(
@@ -87,7 +95,7 @@ class SafeConfigurationStack(Stack):
                 "DJANGO_SUPERUSER_EMAIL": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "CFG_DJANGO_SUPERUSER_EMAIL"
                 ),
-                "CGW_FLUSH_TOKEN": ecs.Secret.from_secrets_manager(
+                "CGW_AUTH_TOKEN": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "CGW_WEBHOOK_TOKEN"
                 ),
                 "POSTGRES_USER": ecs.Secret.from_secrets_manager(

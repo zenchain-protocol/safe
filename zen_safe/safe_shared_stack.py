@@ -11,11 +11,26 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from zen_safe.rabbitmq_stack import RabbitMQStack
+
+
 class SafeSharedStack(Stack):
 
     @property
     def mainnet_database(self):
-        return self._mainnet_database
+        return self._tx_database
+
+    @property
+    def events_database(self):
+        return self._events_database
+
+    @property
+    def tx_mq(self):
+        return self._tx_rabbit_mq
+
+    @property
+    def events_mq(self):
+        return self._events_rabbit_mq
 
     @property
     def log_group(self):
@@ -37,6 +52,10 @@ class SafeSharedStack(Stack):
     def client_gateway_alb(self):
         return self._client_gateway_alb
 
+    @property
+    def events_alb(self):
+        return self._events_alb
+
     def __init__(
         self,
         scope: Construct,
@@ -46,7 +65,12 @@ class SafeSharedStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-# TODO: update env vars for secrets
+        # Tx service
+        self._tx_rabbit_mq = RabbitMQStack(self, "TxRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
+
+        # Events service
+        self._events_rabbit_mq = RabbitMQStack(self, "EventsRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
+
         self._secrets = secretsmanager.Secret(
             self,
             "SafeSharedSecrets",
@@ -56,24 +80,24 @@ class SafeSharedStack(Stack):
                         # Mainnet
                         "TX_DJANGO_SECRET_KEY_MAINNET": "",
                         "TX_DATABASE_URL_MAINNET": "",
+                        "TX_MQ_URL_MAINNET": self._tx_rabbit_mq.authenticated_url,
                         "TX_ETHEREUM_NODE_URL_MAINNET": "",
                         "TX_ETHEREUM_TRACING_NODE_URL_MAINNET": "",
                         "TX_ETHERSCAN_API_KEY_MAINNET": "",
-                        # Testnet
-                        "TX_DJANGO_SECRET_KEY_TESTNET": "",
-                        "TX_DATABASE_URL_TESTNET": "",
-                        "TX_ETHEREUM_NODE_URL_TESTNET": "",
-                        "TX_ETHEREUM_TRACING_NODE_URL_TESTNET": "",
-                        "TX_ETHERSCAN_API_KEY_TESTNET": "",
                         # Configuration Service
                         "CFG_SECRET_KEY": "",
                         "CFG_DJANGO_SUPERUSER_USERNAME": "",
                         "CFG_DJANGO_SUPERUSER_PASSWORD": "",
                         "CFG_DJANGO_SUPERUSER_EMAIL": "",
                         # Client Gateway
-                        "CGW_ROCKET_SECRET_KEY": "",
                         "CGW_WEBHOOK_TOKEN": "",
-                        "CGW_EXCHANGE_API_KEY": "",
+                        "CGW_JWT_SECRET": "",
+                        # Events
+                        "EVENTS_DATABASE_URL": "",
+                        "EVENTS_MQ_URL": self._events_rabbit_mq.authenticated_url,
+                        "EVENTS_ADMIN_EMAIL": "",
+                        "EVENTS_ADMIN_PASSWORD": "",
+                        "EVENTS_SSE_AUTH_TOKEN": "",
                         # UI
                         "UI_REACT_APP_INFURA_TOKEN": "",
                         "UI_REACT_APP_ETHERSCAN_API_KEY": "",
@@ -102,12 +126,19 @@ class SafeSharedStack(Stack):
         )
         Tags.of(self._client_gateway_alb).add("Name", "Safe Client Gateway")
 
+
+        self._events_alb = elbv2.ApplicationLoadBalancer(
+            self, "EventsSafe", vpc=vpc, internet_facing=True
+        )
+        Tags.of(self._events_alb).add("Name", "Safe Events")
+
         self._log_group = logs.LogGroup(
             self, "LogGroup", retention=logs.RetentionDays.ONE_MONTH
         )
 
-        # The databases for the transaction service need to be defined here because we need the database credentials
-        # as a database URL. This can't be done dynamically because of limitations of CDK/Cloud Formation.
+        # The databases for the transaction and events services need to be defined here because we need the
+        # database credentials as database URLs.
+        # This can't be done dynamically because of limitations of CDK/Cloud Formation.
 
         database_options = {
             "engine": rds.DatabaseInstanceEngine.postgres(
@@ -122,8 +153,14 @@ class SafeSharedStack(Stack):
             "credentials": rds.Credentials.from_generated_secret("postgres"),
         }
 
-        self._mainnet_database = rds.DatabaseInstance(
+        self._tx_database = rds.DatabaseInstance(
             self,
             "MainnetTxDatabase",
+            **database_options,
+        )
+
+        self._events_database = rds.DatabaseInstance(
+            self,
+            "EventsDatabase",
             **database_options,
         )

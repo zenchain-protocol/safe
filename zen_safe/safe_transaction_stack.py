@@ -8,6 +8,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
+from zen_safe.rabbitmq_stack import RabbitMQStack
 from zen_safe.safe_shared_stack import SafeSharedStack
 from zen_safe.redis_stack import RedisStack
 
@@ -24,6 +25,8 @@ class SafeTransactionStack(Stack):
         vpc: ec2.IVpc,
         shared_stack: SafeSharedStack,
         database: rds.IDatabaseInstance,
+        tx_mq: RabbitMQStack,
+        events_mq: RabbitMQStack,
         alb: elbv2.IApplicationLoadBalancer,
         chain_name: str,
         number_of_workers: int = 2,
@@ -54,12 +57,15 @@ class SafeTransactionStack(Stack):
                 "C_FORCE_ROOT": "true",
                 "DEBUG": "0",
                 "ETH_L2_NETWORK": "0",
-                "REDIS_URL": f"{self.redis_connection_string}/0",
-                "CELERY_BROKER_URL": f"{self.redis_connection_string}/1",
+                "REDIS_URL": f"{self.redis_connection_string}/",
+                "EVENTS_QUEUE_ASYNC_CONNECTION":"True",
+                "EVENTS_QUEUE_EXCHANGE_NAME": "safe-transaction-service-events",
                 "DJANGO_ALLOWED_HOSTS": "*",
                 "DB_MAX_CONNS": "15",
                 "ETH_INTERNAL_TXS_BLOCK_PROCESS_LIMIT": "5000",
-                "AWS_S3_PUBLIC_URL": "https://safe-transaction-assets.gnosis-safe.io"
+                "FORCE_SCRIPT_NAME": "/txs/",
+                "CSRF_TRUSTED_ORIGINS": "https://safe.zenchain.io",
+                "WORKER_QUEUES": "default,indexing,processing,contracts,tokens,notifications,webhooks"
             },
             "secrets": {
                 "DJANGO_SECRET_KEY": ecs.Secret.from_secrets_manager(
@@ -67,6 +73,12 @@ class SafeTransactionStack(Stack):
                 ),
                 "DATABASE_URL": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, f"TX_DATABASE_URL_{formatted_chain_name}"
+                ),
+                "CELERY_BROKER_URL": ecs.Secret.from_secrets_manager(
+                    shared_stack.secrets, f"TX_MQ_URL_{formatted_chain_name}"
+                ),
+                "EVENTS_QUEUE_URL": ecs.Secret.from_secrets_manager(
+                    shared_stack.secrets, f"EVENTS_MQ_URL"
                 ),
                 "ETHEREUM_NODE_URL": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, f"TX_ETHEREUM_NODE_URL_{formatted_chain_name}"
@@ -248,6 +260,12 @@ class SafeTransactionStack(Stack):
             service.connections.allow_to(database, ec2.Port.tcp(5432), "RDS")
             service.connections.allow_to(
                 self.redis_cluster.connections, ec2.Port.tcp(6379), "Redis"
+            )
+            service.connections.allow_to(
+                tx_mq.connections, ec2.Port.tcp(5672), "RabbitMQTx"
+            )
+            service.connections.allow_to(
+                events_mq.connections, ec2.Port.tcp(5672), "RabbitMQEvents"
             )
 
     @property
