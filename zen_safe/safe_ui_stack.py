@@ -30,7 +30,7 @@ class SafeUIStack(Stack):
             f"{environment_name.upper()}Bucket",
             website_index_document="index.html",
             public_read_access=True,
-            auto_delete_objects=True,  # Keep for convenience in a demo/test
+            auto_delete_objects=True,
             bucket_name=subdomain_name,
             removal_policy=RemovalPolicy.DESTROY,  # Use directly
             cors=[

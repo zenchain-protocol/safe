@@ -98,11 +98,6 @@ class SafeSharedStack(Stack):
                         "EVENTS_ADMIN_EMAIL": "",
                         "EVENTS_ADMIN_PASSWORD": "",
                         "EVENTS_SSE_AUTH_TOKEN": "",
-                        # UI
-                        "UI_REACT_APP_INFURA_TOKEN": "",
-                        "UI_REACT_APP_ETHERSCAN_API_KEY": "",
-                        "UI_REACT_APP_ETHGASSTATION_API_KEY": "",
-                        "UI_REACT_APP_SAFE_APPS_RPC_INFURA_TOKEN": "",
                     }
                 ),
                 generate_string_key="password",  # Needed just so we can provision secrets manager with a template. Not used.

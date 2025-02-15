@@ -3,7 +3,7 @@ import os
 
 from aws_cdk import App, Environment, Tags
 
-from zen_safe.yearn_gnosis_safe_stack import ZenSafeStack
+from zen_safe.safe_stack import ZenSafeStack
 
 app = App()
 environment = Environment(
@@ -22,7 +22,7 @@ ssl_certificate_arn = os.environ.get("SSL_CERTIFICATE_ARN")
 environment_name = "production"
 prod_stack = ZenSafeStack(
     app,
-    "GnosisSafeStack",
+    "SafeStack",
     ui_subdomain=ui_subdomain,
     environment_name=environment_name,
     config_service_uri=config_service_uri,
