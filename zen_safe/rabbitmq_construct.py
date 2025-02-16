@@ -9,7 +9,7 @@ from constructs import Construct
 from urllib.parse import urlparse
 
 
-class RabbitMQStack(Construct):
+class RabbitMQConstruct(Construct):
     @property
     def authenticated_url(self):
         return self._authenticated_url

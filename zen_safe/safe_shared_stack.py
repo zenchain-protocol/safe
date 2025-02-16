@@ -11,7 +11,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from zen_safe.rabbitmq_stack import RabbitMQStack
+from zen_safe.rabbitmq_construct import RabbitMQConstruct
 
 
 class SafeSharedStack(Stack):
@@ -66,10 +66,10 @@ class SafeSharedStack(Stack):
         super().__init__(scope, construct_id, **kwargs)
 
         # Tx service
-        self._tx_rabbit_mq = RabbitMQStack(self, "TxRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
+        self._tx_rabbit_mq = RabbitMQConstruct(self, "TxRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
 
         # Events service
-        self._events_rabbit_mq = RabbitMQStack(self, "EventsRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
+        self._events_rabbit_mq = RabbitMQConstruct(self, "EventsRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
 
         self._secrets = secretsmanager.Secret(
             self,

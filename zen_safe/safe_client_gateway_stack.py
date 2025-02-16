@@ -9,7 +9,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from zen_safe.safe_shared_stack import SafeSharedStack
-from zen_safe.redis_stack import RedisStack
+from zen_safe.redis_construct import RedisConstruct
 
 class SafeClientGatewayStack(Stack):
     @property
@@ -36,7 +36,7 @@ class SafeClientGatewayStack(Stack):
         if config_service_uri is None:
             config_service_uri = f"http://{shared_stack.config_alb.load_balancer_dns_name}"
 
-        self._redis_cluster = RedisStack(
+        self._redis_cluster = RedisConstruct(
             self, "RedisCluster", vpc=vpc, cache_node_type=cache_node_type
         )
 

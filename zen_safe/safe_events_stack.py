@@ -9,7 +9,7 @@ from aws_cdk import (
 from constructs import Construct
 
 from zen_safe.safe_shared_stack import SafeSharedStack
-from zen_safe.rabbitmq_stack import RabbitMQStack
+from zen_safe.rabbitmq_construct import RabbitMQConstruct
 
 class SafeEventsStack(Stack):
     def __init__(
@@ -19,7 +19,7 @@ class SafeEventsStack(Stack):
         vpc: ec2.IVpc,
         shared_stack: SafeSharedStack,
         database: rds.IDatabaseInstance,
-        events_mq: RabbitMQStack,
+        events_mq: RabbitMQConstruct,
         ssl_certificate_arn: Optional[str] = None,
         **kwargs,
     ) -> None:

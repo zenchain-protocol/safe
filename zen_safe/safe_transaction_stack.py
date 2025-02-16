@@ -8,9 +8,9 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-from zen_safe.rabbitmq_stack import RabbitMQStack
+from zen_safe.rabbitmq_construct import RabbitMQConstruct
 from zen_safe.safe_shared_stack import SafeSharedStack
-from zen_safe.redis_stack import RedisStack
+from zen_safe.redis_construct import RedisConstruct
 
 
 class SafeTransactionStack(Stack):
@@ -25,8 +25,8 @@ class SafeTransactionStack(Stack):
         vpc: ec2.IVpc,
         shared_stack: SafeSharedStack,
         database: rds.IDatabaseInstance,
-        tx_mq: RabbitMQStack,
-        events_mq: RabbitMQStack,
+        tx_mq: RabbitMQConstruct,
+        events_mq: RabbitMQConstruct,
         alb: elbv2.IApplicationLoadBalancer,
         chain_name: str,
         number_of_workers: int = 2,
@@ -38,7 +38,7 @@ class SafeTransactionStack(Stack):
 
         formatted_chain_name = chain_name.upper()
 
-        self._redis_cluster = RedisStack(
+        self._redis_cluster = RedisConstruct(
             self, "RedisCluster", vpc=vpc, cache_node_type=cache_node_type
         )
 

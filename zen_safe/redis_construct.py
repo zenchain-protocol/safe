@@ -6,7 +6,7 @@ from aws_cdk import (
 )
 from constructs import Construct
 
-class RedisStack(Construct):
+class RedisConstruct(Construct):
     @property
     def connections(self):
         return self._connections
