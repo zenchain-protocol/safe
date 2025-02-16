@@ -79,11 +79,11 @@ class SafeClientGatewayStack(Stack):
                 "JWT_SECRET": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "CGW_JWT_SECRET"
                 ),
-                "CGW_AUTH_TOKEN": ecs.Secret.from_secrets_manager(
+                "AUTH_TOKEN": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "CGW_WEBHOOK_TOKEN"
                 ),
-                "EXCHANGE_API_KEY": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, "CGW_EXCHANGE_API_KEY"
+                "PRICES_PROVIDER_API_KEY": ecs.Secret.from_secrets_manager(
+                    shared_stack.secrets, "CGW_PRICES_PROVIDER_API_KEY"
                 ),
                 "POSTGRES_USER": ecs.Secret.from_secrets_manager(
                     database.secret, "username"

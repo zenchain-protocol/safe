@@ -92,6 +92,7 @@ class SafeSharedStack(Stack):
                         # Client Gateway
                         "CGW_WEBHOOK_TOKEN": "",
                         "CGW_JWT_SECRET": "",
+                        "CGW_PRICES_PROVIDER_API_KEY": "",
                         # Events
                         "EVENTS_DATABASE_URL": "",
                         "EVENTS_MQ_URL": self._events_rabbit_mq.authenticated_url,

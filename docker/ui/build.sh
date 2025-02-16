@@ -31,7 +31,7 @@ SECRET_ID=$(aws secretsmanager list-secrets --query "SecretList[?Tags[?Key=='env
 SECRETS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} | jq --raw-output '.SecretString')
 
 # CGW
-export NEXT_PUBLIC_GATEWAY_URL_PRODUCTION=https://safe.host.zenchain.io/cgw
+export NEXT_PUBLIC_GATEWAY_URL_PRODUCTION=https://cgw.safe.host.zenchain.io
 # Production build
 export NEXT_PUBLIC_IS_PRODUCTION=true
 # Latest supported safe version, used for upgrade prompts
