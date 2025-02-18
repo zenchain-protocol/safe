@@ -4,6 +4,9 @@ import os
 from aws_cdk import App, Environment, Tags
 
 from zen_safe.safe_stack import ZenSafeStack
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = App()
 environment = Environment(

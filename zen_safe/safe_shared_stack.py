@@ -1,4 +1,5 @@
 import json
+import os
 
 from aws_cdk import (
     aws_ec2 as ec2,
@@ -9,9 +10,11 @@ from aws_cdk import (
     Stack,
     Tags,
 )
+import aws_cdk as cdk
 from constructs import Construct
 
 from zen_safe.rabbitmq_construct import RabbitMQConstruct
+from zen_safe.redis_construct import RedisConstruct
 
 
 class SafeSharedStack(Stack):
@@ -31,6 +34,10 @@ class SafeSharedStack(Stack):
     @property
     def events_mq(self):
         return self._events_rabbit_mq
+
+    @property
+    def tx_redis_cluster_mainnet(self):
+        return self._tx_redis_cluster_mainnet
 
     @property
     def log_group(self):
@@ -65,10 +72,18 @@ class SafeSharedStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Tx service
+        # Tx service queue
         self._tx_rabbit_mq = RabbitMQConstruct(self, "TxRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
+        # Tx service cache
+        self._tx_redis_cluster_mainnet = RedisConstruct(
+            self,
+            "RedisCluster",
+            vpc=vpc,
+            auth_token=os.getenv("TX_REDIS_PASS_MAINNET"),
+            cache_node_type="cache.t3.small"
+        )
 
-        # Events service
+        # Events service queue
         self._events_rabbit_mq = RabbitMQConstruct(self, "EventsRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
 
         self._secrets = secretsmanager.Secret(
@@ -78,30 +93,33 @@ class SafeSharedStack(Stack):
                 secret_string_template=json.dumps(
                     {
                         # Mainnet
-                        "TX_DJANGO_SECRET_KEY_MAINNET": "",
-                        "TX_DATABASE_URL_MAINNET": "",
+                        "TX_DJANGO_SECRET_KEY_MAINNET": os.getenv("TX_DJANGO_SECRET_KEY_MAINNET"),
+                        "TX_DATABASE_URL_MAINNET": os.getenv("TX_DATABASE_URL_MAINNET") or "",
                         "TX_MQ_URL_MAINNET": self._tx_rabbit_mq.authenticated_url,
-                        "TX_ETHEREUM_NODE_URL_MAINNET": "",
-                        "TX_ETHEREUM_TRACING_NODE_URL_MAINNET": "",
-                        "TX_ETHERSCAN_API_KEY_MAINNET": "",
+                        "TX_ETHEREUM_NODE_URL_MAINNET": os.getenv("TX_ETHEREUM_NODE_URL_MAINNET"),
+                        "TX_ETHEREUM_TRACING_NODE_URL_MAINNET": os.getenv("TX_ETHEREUM_TRACING_NODE_URL_MAINNET"),
+                        "TX_ETHERSCAN_API_KEY_MAINNET": os.getenv("TX_ETHERSCAN_API_KEY_MAINNET"),
+                        "TX_REDIS_URL_MAINNET": self._tx_redis_cluster_mainnet.authenticated_url,
                         # Configuration Service
-                        "CFG_SECRET_KEY": "",
-                        "CFG_DJANGO_SUPERUSER_USERNAME": "",
-                        "CFG_DJANGO_SUPERUSER_PASSWORD": "",
-                        "CFG_DJANGO_SUPERUSER_EMAIL": "",
+                        "CFG_SECRET_KEY": os.getenv("CFG_SECRET_KEY"),
+                        "CFG_DJANGO_SUPERUSER_USERNAME": os.getenv("CFG_DJANGO_SUPERUSER_USERNAME"),
+                        "CFG_DJANGO_SUPERUSER_PASSWORD": os.getenv("CFG_DJANGO_SUPERUSER_PASSWORD"),
+                        "CFG_DJANGO_SUPERUSER_EMAIL": os.getenv("CFG_DJANGO_SUPERUSER_EMAIL"),
                         # Client Gateway
-                        "CGW_WEBHOOK_TOKEN": "",
-                        "CGW_JWT_SECRET": "",
-                        "CGW_PRICES_PROVIDER_API_KEY": "",
+                        "CGW_WEBHOOK_TOKEN": os.getenv("CGW_WEBHOOK_TOKEN"),
+                        "CGW_JWT_SECRET": os.getenv("CGW_JWT_SECRET"),
+                        "CGW_PRICES_PROVIDER_API_KEY": os.getenv("CGW_PRICES_PROVIDER_API_KEY"),
+                        "CGW_REDIS_PASS": os.getenv("CGW_REDIS_PASS"),
                         # Events
-                        "EVENTS_DATABASE_URL": "",
+                        "EVENTS_DATABASE_URL": os.getenv("EVENTS_DATABASE_URL") or "",
                         "EVENTS_MQ_URL": self._events_rabbit_mq.authenticated_url,
-                        "EVENTS_ADMIN_EMAIL": "",
-                        "EVENTS_ADMIN_PASSWORD": "",
-                        "EVENTS_SSE_AUTH_TOKEN": "",
+                        "EVENTS_ADMIN_EMAIL": os.getenv("EVENTS_ADMIN_EMAIL"),
+                        "EVENTS_ADMIN_PASSWORD": os.getenv("EVENTS_ADMIN_PASSWORD"),
+                        "EVENTS_SSE_AUTH_TOKEN": os.getenv("EVENTS_SSE_AUTH_TOKEN"),
                     }
                 ),
-                generate_string_key="password",  # Needed just so we can provision secrets manager with a template. Not used.
+                generate_string_key="password",
+                # Needed just so we can provision secrets manager with a template. Not used.
             ),
         )
 
@@ -146,17 +164,16 @@ class SafeSharedStack(Stack):
             "vpc": vpc,
             "vpc_subnets": ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
             "max_allocated_storage": 500,
-            "credentials": rds.Credentials.from_generated_secret("postgres"),
         }
 
         self._tx_database = rds.DatabaseInstance(
             self,
             "MainnetTxDatabase",
-            **database_options,
+            **{**database_options, "credentials": rds.Credentials.from_generated_secret("postgres")}
         )
 
         self._events_database = rds.DatabaseInstance(
             self,
             "EventsDatabase",
-            **database_options,
+            **{**database_options, "credentials": rds.Credentials.from_generated_secret("postgres")}
         )

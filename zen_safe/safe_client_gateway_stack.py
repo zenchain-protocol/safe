@@ -37,7 +37,11 @@ class SafeClientGatewayStack(Stack):
             config_service_uri = f"http://{shared_stack.config_alb.load_balancer_dns_name}"
 
         self._redis_cluster = RedisConstruct(
-            self, "RedisCluster", vpc=vpc, cache_node_type=cache_node_type
+            self,
+            "RedisCluster",
+            vpc=vpc,
+            auth_token=shared_stack.secrets.secret_value_from_json("CGW_REDIS_PASS").to_string(),
+            cache_node_type=cache_node_type
         )
 
         database = rds.DatabaseInstance(
@@ -71,7 +75,6 @@ class SafeClientGatewayStack(Stack):
                 "LOG_LEVEL": "info",
                 "POSTGRES_DB": "postgres",
                 "REDIS_HOST": self.redis_cluster.cluster.attr_primary_end_point_address,
-                "REDIS_PASS": self.redis_cluster.cluster.auth_token,
                 "REDIS_PORT": self.redis_cluster.cluster.attr_primary_end_point_port,
                 "HTTP_CLIENT_REQUEST_TIMEOUT_MILLISECONDS": "60000",
             },
@@ -81,6 +84,9 @@ class SafeClientGatewayStack(Stack):
                 ),
                 "AUTH_TOKEN": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "CGW_WEBHOOK_TOKEN"
+                ),
+                "REDIS_PASS": ecs.Secret.from_secrets_manager(
+                    shared_stack.secrets, "CGW_REDIS_PASS"
                 ),
                 "PRICES_PROVIDER_API_KEY": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "CGW_PRICES_PROVIDER_API_KEY"

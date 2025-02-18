@@ -29,6 +29,12 @@ class SafeUIStack(Stack):
             self,
             f"{environment_name.upper()}Bucket",
             website_index_document="index.html",
+            block_public_access=s3.BlockPublicAccess(
+                block_public_acls=True,
+                block_public_policy=False,
+                ignore_public_acls=False,
+                restrict_public_buckets=False
+            ),
             public_read_access=True,
             auto_delete_objects=True,
             bucket_name=subdomain_name,

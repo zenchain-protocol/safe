@@ -26,7 +26,6 @@ class ZenSafeStack(Stack):
         config_service_uri: Optional[str] = None,
         client_gateway_url: Optional[str] = None,
         mainnet_transaction_gateway_url: Optional[str] = None,
-        testnet_transaction_gateway_url: Optional[str] = None,
         ssl_certificate_arn: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -45,6 +44,7 @@ class ZenSafeStack(Stack):
             database=shared_stack.mainnet_database,
             tx_mq=shared_stack.tx_mq,
             events_mq=shared_stack.events_mq,
+            redis_cluster=shared_stack.tx_redis_cluster_mainnet,
             alb=shared_stack.transaction_mainnet_alb,
             number_of_workers=4,
             ssl_certificate_arn=ssl_certificate_arn,
@@ -69,7 +69,6 @@ class ZenSafeStack(Stack):
             client_gateway_url=client_gateway_url,
             config_service_uri=config_service_uri,
             mainnet_transaction_gateway_url=mainnet_transaction_gateway_url,
-            testnet_transaction_gateway_url=testnet_transaction_gateway_url,
         )
 
         events_stack = SafeEventsStack(
@@ -79,7 +78,6 @@ class ZenSafeStack(Stack):
             shared_stack=shared_stack,
             database=shared_stack.events_database,
             events_mq=shared_stack.events_mq,
-            alb=shared_stack.events_alb,
             ssl_certificate_arn=ssl_certificate_arn,
         )
 

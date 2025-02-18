@@ -3,7 +3,7 @@ from aws_cdk import (
     Tags,
     aws_secretsmanager as secretsmanager,
     aws_amazonmq as mq,
-    CfnOutput,
+    CfnOutput, Fn,
 )
 from constructs import Construct
 from urllib.parse import urlparse
@@ -91,15 +91,14 @@ class RabbitMQConstruct(Construct):
             deployment_mode="SINGLE_INSTANCE"
         )
 
+        self._amqp_url = Fn.select(0, self._broker.attr_amqp_endpoints)
         self._authenticated_url = create_mq_connection_string(
             username=self._secret.secret_value_from_json("username").to_string(),
             password=self._secret.secret_value_from_json("password").to_string(),
-            host=urlparse(self.broker.attr_amqp_endpoints[0]).hostname,
+            host=urlparse(self._amqp_url).hostname,
             port=5671
         )
-
-        self._amqp_url = self.broker.attr_amqp_endpoints[0]
-        self._amqp_host = urlparse(self.broker.attr_amqp_endpoints[0]).hostname
+        self._amqp_host = urlparse(self._amqp_url).hostname
         self._amqp_port = 5671
 
          # Output the AMQP URL and other useful attributes

@@ -5,6 +5,9 @@
   "main": "index.js",
   "author": "",
   "license": "ISC",
+  "scripts": {
+    "synth": "CDK_DEFAULT_ACCOUNT=123 CDK_DEFAULT_REGION=us-east-1 cdk synth"
+  },
   "devDependencies": {
     "aws-cdk": "^2.178.1"
   }

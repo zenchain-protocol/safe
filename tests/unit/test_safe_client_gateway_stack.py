@@ -8,7 +8,8 @@ from aws_cdk import aws_ec2 as ec2
 class TestSafeClientGatewayStack:
     app = cdk.App()
     env = cdk.Environment(account="123456789012", region="us-east-1")
-    vpc = ec2.Vpc(app, "TestVpc", cidr="10.0.0.0/16")
+    shared_resources_stack = cdk.Stack(app, "SharedResourcesStack", env=env)
+    vpc = ec2.Vpc(shared_resources_stack, "TestVpc", cidr="10.0.0.0/16")
     shared_stack = SafeSharedStack(
         app,
         "TestSharedStack",

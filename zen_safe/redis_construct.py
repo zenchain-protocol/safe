@@ -15,8 +15,11 @@ class RedisConstruct(Construct):
     def cluster(self):
         return self._cluster
 
+    @property
+    def authenticated_url(self):
+        return self._authenticated_url
 
-    def __init__(self, scope: Construct, construct_id: str, vpc: ec2.IVpc, cache_node_type: str="cache.t3.small") -> None:
+    def __init__(self, scope: Construct, construct_id: str, vpc: ec2.IVpc, auth_token: str, cache_node_type: str="cache.t3.small") -> None:
         super().__init__(scope, construct_id)
 
         sg_elasticache = ec2.SecurityGroup(
@@ -80,5 +83,8 @@ class RedisConstruct(Construct):
                 CfnTag(key="Name", value="redis-with-replicas"),
                 CfnTag(key="desc", value="primary-replica redis"),
             ],
+            auth_token=auth_token,
         )
         self._cluster.add_dependency(elasticache_subnet_group)
+        self._authenticated_url = f"redis://:{self._cluster.auth_token}@{self._cluster.attr_primary_end_point_address}:{self._cluster.attr_primary_end_point_port}/"
+

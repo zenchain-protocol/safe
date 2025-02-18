@@ -3,15 +3,18 @@ from aws_cdk import (
     App,
     aws_ec2 as ec2,
 )
+import aws_cdk as cdk
 from zen_safe.redis_construct import RedisConstruct
 
 
 def test_redis_construct_creation():
     """Test if RedisConstruct creates all required resources."""
     app = App()
-    vpc = ec2.Vpc(app, "TestVPC")
-    redis_construct = RedisConstruct(app, "TestRedisConstruct", vpc, "cache.t3.small")
-    template = assertions.Template.from_stack(redis_construct)
+    env = cdk.Environment(account="123456789012", region="us-east-1")
+    test_stack = cdk.Stack(app, "TestStack", env=env)
+    vpc = ec2.Vpc(test_stack, "TestVPC")
+    redis_construct = RedisConstruct(test_stack, "TestRedisConstruct", vpc, "cache.t3.small")
+    template = assertions.Template.from_stack(test_stack)
 
     # Verify Redis replication group resource exists
     template.resource_count_is("AWS::ElastiCache::ReplicationGroup", 1)
@@ -30,9 +33,11 @@ def test_redis_construct_creation():
 def test_redis_construct_security_group():
     """Test if RedisConstruct creates a security group with the correct properties."""
     app = App()
-    vpc = ec2.Vpc(app, "TestVPC")
-    redis_construct = RedisConstruct(app, "TestRedisConstruct", vpc, "cache.t3.small")
-    template = assertions.Template.from_stack(redis_construct)
+    env = cdk.Environment(account="123456789012", region="us-east-1")
+    test_stack = cdk.Stack(app, "TestStack", env=env)
+    vpc = ec2.Vpc(test_stack, "TestVPC")
+    redis_construct = RedisConstruct(test_stack, "TestRedisConstruct", vpc, "cache.t3.small")
+    template = assertions.Template.from_stack(test_stack)
 
     # Verify the security group resource exists
     template.resource_count_is("AWS::EC2::SecurityGroup", 1)
@@ -40,16 +45,18 @@ def test_redis_construct_security_group():
     # Verify security group ingress rule
     template.has_resource_properties("AWS::EC2::SecurityGroupIngress", {
         "Description": "default-redis-server",
-        "IpProtocol": "-1",
+        "IpProtocol": "tcp",
     })
 
 
 def test_redis_construct_parameter_group():
     """Test if RedisConstruct creates a parameter group with correct properties."""
     app = App()
-    vpc = ec2.Vpc(app, "TestVPC")
-    redis_construct = RedisConstruct(app, "TestRedisConstruct", vpc, "cache.t3.small")
-    template = assertions.Template.from_stack(redis_construct)
+    env = cdk.Environment(account="123456789012", region="us-east-1")
+    test_stack = cdk.Stack(app, "TestStack", env=env)
+    vpc = ec2.Vpc(test_stack, "TestVPC")
+    redis_construct = RedisConstruct(test_stack, "TestRedisConstruct", vpc, "cache.t3.small")
+    template = assertions.Template.from_stack(test_stack)
 
     # Verify the parameter group resource exists
     template.resource_count_is("AWS::ElastiCache::ParameterGroup", 1)
@@ -67,9 +74,11 @@ def test_redis_construct_parameter_group():
 def test_redis_construct_subnet_group():
     """Test if RedisConstruct creates a subnet group with proper configuration."""
     app = App()
-    vpc = ec2.Vpc(app, "TestVPC")
-    redis_construct = RedisConstruct(app, "TestRedisConstruct", vpc, "cache.t3.small")
-    template = assertions.Template.from_stack(redis_construct)
+    env = cdk.Environment(account="123456789012", region="us-east-1")
+    test_stack = cdk.Stack(app, "TestStack", env=env)
+    vpc = ec2.Vpc(test_stack, "TestVPC")
+    redis_construct = RedisConstruct(test_stack, "TestRedisConstruct", vpc, "cache.t3.small")
+    template = assertions.Template.from_stack(test_stack)
 
     # Verify the subnet group resource exists
     template.resource_count_is("AWS::ElastiCache::SubnetGroup", 1)

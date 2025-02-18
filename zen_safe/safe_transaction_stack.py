@@ -14,9 +14,6 @@ from zen_safe.redis_construct import RedisConstruct
 
 
 class SafeTransactionStack(Stack):
-    @property
-    def redis_cluster(self):
-        return self._redis_cluster
 
     def __init__(
         self,
@@ -27,20 +24,16 @@ class SafeTransactionStack(Stack):
         database: rds.IDatabaseInstance,
         tx_mq: RabbitMQConstruct,
         events_mq: RabbitMQConstruct,
+        redis_cluster: RedisConstruct,
         alb: elbv2.IApplicationLoadBalancer,
         chain_name: str,
         number_of_workers: int = 2,
-        cache_node_type: str = "cache.t3.small",
         ssl_certificate_arn: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
         formatted_chain_name = chain_name.upper()
-
-        self._redis_cluster = RedisConstruct(
-            self, "RedisCluster", vpc=vpc, cache_node_type=cache_node_type
-        )
 
         ecs_cluster = ecs.Cluster(
             self,
@@ -57,7 +50,6 @@ class SafeTransactionStack(Stack):
                 "C_FORCE_ROOT": "true",
                 "DEBUG": "0",
                 "ETH_L2_NETWORK": "0",
-                "REDIS_URL": f"{self.redis_connection_string}/",
                 "EVENTS_QUEUE_ASYNC_CONNECTION":"True",
                 "EVENTS_QUEUE_EXCHANGE_NAME": "safe-transaction-service-events",
                 "DJANGO_ALLOWED_HOSTS": "*",
@@ -79,6 +71,9 @@ class SafeTransactionStack(Stack):
                 ),
                 "EVENTS_QUEUE_URL": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, f"EVENTS_MQ_URL"
+                ),
+                "REDIS_URL": ecs.Secret.from_secrets_manager(
+                    shared_stack.secrets, f"TX_REDIS_URL_{formatted_chain_name}"
                 ),
                 "ETHEREUM_NODE_URL": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, f"TX_ETHEREUM_NODE_URL_{formatted_chain_name}"
@@ -259,7 +254,7 @@ class SafeTransactionStack(Stack):
         for service in [web_service, worker_service, schedule_service]:
             service.connections.allow_to(database, ec2.Port.tcp(5432), "RDS")
             service.connections.allow_to(
-                self.redis_cluster.connections, ec2.Port.tcp(6379), "Redis"
+                redis_cluster.connections, ec2.Port.tcp(6379), "Redis"
             )
             service.connections.allow_to(
                 tx_mq.connections, ec2.Port.tcp(5672), "RabbitMQTx"
@@ -267,7 +262,3 @@ class SafeTransactionStack(Stack):
             service.connections.allow_to(
                 events_mq.connections, ec2.Port.tcp(5672), "RabbitMQEvents"
             )
-
-    @property
-    def redis_connection_string(self) -> str:
-        return f"redis://{self.redis_cluster.cluster.attr_primary_end_point_address}:{self.redis_cluster.cluster.attr_primary_end_point_port}"

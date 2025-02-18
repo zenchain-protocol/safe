@@ -95,7 +95,7 @@ class SafeEventsStack(Stack):
 
         ## Setup LB and redirect traffic to web and static containers
 
-        listener = shared_stack.client_gateway_alb.add_listener("Listener", port=80)
+        listener = shared_stack.events_alb.add_listener("Listener", port=80)
 
         listener.add_targets(
             "WebTarget",
@@ -105,16 +105,14 @@ class SafeEventsStack(Stack):
         )
 
         if ssl_certificate_arn is not None:
-            ssl_listener = shared_stack.client_gateway_alb.add_listener(
+            ssl_listener = shared_stack.events_alb.add_listener(
                 "SSLListener", port=443
             )
 
-            # Use add_certificates instead of add_certificate_arns
             ssl_listener.add_certificates(
                 "SSL Listener",
-                certificates=[elbv2.ListenerCertificate(ssl_certificate_arn)], # Use ListenerCertificate
+                certificates=[elbv2.ListenerCertificate(ssl_certificate_arn)],
             )
-
 
             ssl_listener.add_targets(
                 "WebTarget",
