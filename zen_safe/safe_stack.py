@@ -35,16 +35,21 @@ class ZenSafeStack(Stack):
 
         shared_stack = SafeSharedStack(self, "SafeShared", vpc=vpc)
 
+        events_stack = SafeEventsStack(
+            self,
+            "SafeEvents",
+            vpc=vpc,
+            shared_stack=shared_stack,
+            ssl_certificate_arn=ssl_certificate_arn,
+        )
+
         transaction_mainnet_stack = SafeTransactionStack(
             self,
             "SafeTxMainnet",
             vpc=vpc,
             shared_stack=shared_stack,
             chain_name="mainnet",
-            database=shared_stack.mainnet_database,
-            tx_mq=shared_stack.tx_mq,
-            events_mq=shared_stack.events_mq,
-            redis_cluster=shared_stack.tx_redis_cluster_mainnet,
+            events_mq=events_stack.events_mq,
             alb=shared_stack.transaction_mainnet_alb,
             number_of_workers=4,
             ssl_certificate_arn=ssl_certificate_arn,
@@ -69,16 +74,6 @@ class ZenSafeStack(Stack):
             client_gateway_url=client_gateway_url,
             config_service_uri=config_service_uri,
             mainnet_transaction_gateway_url=mainnet_transaction_gateway_url,
-        )
-
-        events_stack = SafeEventsStack(
-            self,
-            "SafeEvents",
-            vpc=vpc,
-            shared_stack=shared_stack,
-            database=shared_stack.events_database,
-            events_mq=shared_stack.events_mq,
-            ssl_certificate_arn=ssl_certificate_arn,
         )
 
         # Dependencies (CDK v2 often infers these, but keep for compatibility)

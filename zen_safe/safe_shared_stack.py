@@ -5,39 +5,13 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_elasticloadbalancingv2 as elbv2,
     aws_logs as logs,
-    aws_rds as rds,
     aws_secretsmanager as secretsmanager,
     Stack,
     Tags,
 )
-import aws_cdk as cdk
 from constructs import Construct
 
-from zen_safe.rabbitmq_construct import RabbitMQConstruct
-from zen_safe.redis_construct import RedisConstruct
-
-
 class SafeSharedStack(Stack):
-
-    @property
-    def mainnet_database(self):
-        return self._tx_database
-
-    @property
-    def events_database(self):
-        return self._events_database
-
-    @property
-    def tx_mq(self):
-        return self._tx_rabbit_mq
-
-    @property
-    def events_mq(self):
-        return self._events_rabbit_mq
-
-    @property
-    def tx_redis_cluster_mainnet(self):
-        return self._tx_redis_cluster_mainnet
 
     @property
     def log_group(self):
@@ -72,20 +46,6 @@ class SafeSharedStack(Stack):
     ) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # Tx service queue
-        self._tx_rabbit_mq = RabbitMQConstruct(self, "TxRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
-        # Tx service cache
-        self._tx_redis_cluster_mainnet = RedisConstruct(
-            self,
-            "RedisCluster",
-            vpc=vpc,
-            auth_token=os.getenv("TX_REDIS_PASS_MAINNET"),
-            cache_node_type="cache.t3.small"
-        )
-
-        # Events service queue
-        self._events_rabbit_mq = RabbitMQConstruct(self, "EventsRabbitMQ", vpc=vpc, mq_node_type="mq.t3.small")
-
         self._secrets = secretsmanager.Secret(
             self,
             "SafeSharedSecrets",
@@ -95,11 +55,9 @@ class SafeSharedStack(Stack):
                         # Mainnet
                         "TX_DJANGO_SECRET_KEY_MAINNET": os.getenv("TX_DJANGO_SECRET_KEY_MAINNET"),
                         "TX_DATABASE_URL_MAINNET": os.getenv("TX_DATABASE_URL_MAINNET") or "",
-                        "TX_MQ_URL_MAINNET": self._tx_rabbit_mq.authenticated_url,
                         "TX_ETHEREUM_NODE_URL_MAINNET": os.getenv("TX_ETHEREUM_NODE_URL_MAINNET"),
                         "TX_ETHEREUM_TRACING_NODE_URL_MAINNET": os.getenv("TX_ETHEREUM_TRACING_NODE_URL_MAINNET"),
                         "TX_ETHERSCAN_API_KEY_MAINNET": os.getenv("TX_ETHERSCAN_API_KEY_MAINNET"),
-                        "TX_REDIS_URL_MAINNET": self._tx_redis_cluster_mainnet.authenticated_url,
                         # Configuration Service
                         "CFG_SECRET_KEY": os.getenv("CFG_SECRET_KEY"),
                         "CFG_DJANGO_SUPERUSER_USERNAME": os.getenv("CFG_DJANGO_SUPERUSER_USERNAME"),
@@ -112,7 +70,6 @@ class SafeSharedStack(Stack):
                         "CGW_REDIS_PASS": os.getenv("CGW_REDIS_PASS"),
                         # Events
                         "EVENTS_DATABASE_URL": os.getenv("EVENTS_DATABASE_URL") or "",
-                        "EVENTS_MQ_URL": self._events_rabbit_mq.authenticated_url,
                         "EVENTS_ADMIN_EMAIL": os.getenv("EVENTS_ADMIN_EMAIL"),
                         "EVENTS_ADMIN_PASSWORD": os.getenv("EVENTS_ADMIN_PASSWORD"),
                         "EVENTS_SSE_AUTH_TOKEN": os.getenv("EVENTS_SSE_AUTH_TOKEN"),
@@ -148,32 +105,4 @@ class SafeSharedStack(Stack):
 
         self._log_group = logs.LogGroup(
             self, "LogGroup", retention=logs.RetentionDays.ONE_MONTH
-        )
-
-        # The databases for the transaction and events services need to be defined here because we need the
-        # database credentials as database URLs.
-        # This can't be done dynamically because of limitations of CDK/Cloud Formation.
-
-        database_options = {
-            "engine": rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_16_3
-            ),
-            "instance_type": ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE4_GRAVITON, ec2.InstanceSize.SMALL
-            ),
-            "vpc": vpc,
-            "vpc_subnets": ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
-            "max_allocated_storage": 500,
-        }
-
-        self._tx_database = rds.DatabaseInstance(
-            self,
-            "MainnetTxDatabase",
-            **{**database_options, "credentials": rds.Credentials.from_generated_secret("postgres")}
-        )
-
-        self._events_database = rds.DatabaseInstance(
-            self,
-            "EventsDatabase",
-            **{**database_options, "credentials": rds.Credentials.from_generated_secret("postgres")}
         )

@@ -25,11 +25,6 @@ if [[ -z "$AWS_REGION" ]]; then
     export AWS_REGION="us-east-1"
 fi
 
-
-SECRET_ID=$(aws secretsmanager list-secrets --query "SecretList[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']]" --filters Key=name,Values=SafeSharedSecrets --query "SecretList[0].ARN" --output text)
-
-SECRETS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ID} | jq --raw-output '.SecretString')
-
 # CGW
 export NEXT_PUBLIC_GATEWAY_URL_PRODUCTION=https://cgw.safe.host.zenchain.io
 # Production build
@@ -39,8 +34,11 @@ export NEXT_PUBLIC_SAFE_VERSION=1.4.1
 export NEXT_PUBLIC_IS_OFFICIAL_HOST=false
 
 # Secret environment variables
-export NEXT_PUBLIC_INFURA_TOKEN=$(echo $SECRETS | jq -r .UI_INFURA_TOKEN | xargs)
-export NEXT_PUBLIC_SAFE_APPS_INFURA_TOKEN=$(echo $SECRETS | jq -r .UI_SAFE_APPS_RPC_INFURA_TOKEN | xargs)
+#SECRET_ARN=$(aws secretsmanager list-secrets --query "SecretList[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']]" --filters Key=name,Values=SafeSharedSecrets --query "SecretList[0].ARN" --output text)
+#SECRETS=$(aws secretsmanager get-secret-value --secret-id ${SECRET_ARN} | jq --raw-output '.SecretString')
+
+#export NEXT_PUBLIC_INFURA_TOKEN=$(echo $SECRETS | jq -r .UI_INFURA_TOKEN | xargs)
+#export NEXT_PUBLIC_SAFE_APPS_INFURA_TOKEN=$(echo $SECRETS | jq -r .UI_SAFE_APPS_RPC_INFURA_TOKEN | xargs)
 
 while read -r LB_ARN DNS_NAME; do
     IS_TX_MAINNET_LB=$(aws elbv2 describe-tags --resource-arns ${LB_ARN} --query "TagDescriptions[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']] && TagDescriptions[?Tags[?Key=='Name' && Value=='Safe Transaction Mainnet']]" --output text)

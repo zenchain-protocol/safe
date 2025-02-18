@@ -3,11 +3,11 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_ecs as ecs,
     aws_elasticloadbalancingv2 as elbv2,
-    aws_rds as rds,
     Stack,
 )
 from constructs import Construct
 
+from zen_safe.postgres_construct import PostgresDatabaseConstruct
 from zen_safe.safe_shared_stack import SafeSharedStack
 from zen_safe.redis_construct import RedisConstruct
 
@@ -40,24 +40,10 @@ class SafeClientGatewayStack(Stack):
             self,
             "RedisCluster",
             vpc=vpc,
-            auth_token=shared_stack.secrets.secret_value_from_json("CGW_REDIS_PASS").to_string(),
             cache_node_type=cache_node_type
         )
 
-        database = rds.DatabaseInstance(
-            self,
-            "CgwDatabase",
-            engine=rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_16_3
-            ),
-            instance_type=ec2.InstanceType.of(
-                ec2.InstanceClass.BURSTABLE4_GRAVITON, ec2.InstanceSize.SMALL
-            ),
-            vpc=vpc,
-            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PRIVATE_WITH_EGRESS),
-            max_allocated_storage=500,
-            credentials=rds.Credentials.from_generated_secret("postgres"),
-        )
+        self._cgw_database = PostgresDatabaseConstruct(self, "ClientGatewayDatabase", vpc=vpc)
 
         ecs_cluster = ecs.Cluster(
             self,
@@ -92,16 +78,16 @@ class SafeClientGatewayStack(Stack):
                     shared_stack.secrets, "CGW_PRICES_PROVIDER_API_KEY"
                 ),
                 "POSTGRES_USER": ecs.Secret.from_secrets_manager(
-                    database.secret, "username"
+                    self._cgw_database.secret, "username"
                 ),
                 "POSTGRES_PASSWORD": ecs.Secret.from_secrets_manager(
-                    database.secret, "password"
+                    self._cgw_database.secret, "password"
                 ),
                 "POSTGRES_HOST": ecs.Secret.from_secrets_manager(
-                    database.secret, "host"
+                    self._cgw_database.secret, "host"
                 ),
                 "POSTGRES_PORT": ecs.Secret.from_secrets_manager(
-                    database.secret, "port"
+                    self._cgw_database.secret, "port"
                 ),
             },
         }
@@ -169,7 +155,7 @@ class SafeClientGatewayStack(Stack):
             )
 
         for svc in [service]:
-            service.connections.allow_to(database, ec2.Port.tcp(5432), "RDS")
+            service.connections.allow_to(self._cgw_database.database_instance, ec2.Port.tcp(5432), "RDS")
             svc.connections.allow_to(
                 self.redis_cluster.connections, ec2.Port.tcp(6379), "Redis"
             )

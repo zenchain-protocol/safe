@@ -1,9 +1,11 @@
 from aws_cdk import (
     aws_ec2 as ec2,
     aws_elasticache as elasticache,
+    aws_secretsmanager as secretsmanager,
     Tags,
     CfnTag,
 )
+import aws_cdk as cdk
 from constructs import Construct
 
 class RedisConstruct(Construct):
@@ -16,10 +18,10 @@ class RedisConstruct(Construct):
         return self._cluster
 
     @property
-    def authenticated_url(self):
-        return self._authenticated_url
+    def connection_string_secret(self):
+        return self._connection_string_secret
 
-    def __init__(self, scope: Construct, construct_id: str, vpc: ec2.IVpc, auth_token: str, cache_node_type: str="cache.t3.small") -> None:
+    def __init__(self, scope: Construct, construct_id: str, vpc: ec2.IVpc, cache_node_type: str="cache.t3.small") -> None:
         super().__init__(scope, construct_id)
 
         sg_elasticache = ec2.SecurityGroup(
@@ -61,6 +63,20 @@ class RedisConstruct(Construct):
             },
         )
 
+        # Create a Secrets Manager secret for the Redis auth token
+        self._secret = secretsmanager.Secret(
+            self, f"RedisAuthTokenSecret",
+            secret_name=f"redis-auth-token",
+            generate_secret_string=secretsmanager.SecretStringGenerator(
+                secret_string_template='{"auth_token": ""}',
+                generate_string_key="auth_token",
+                exclude_punctuation=True,
+                password_length=32,
+            )
+        )
+        auth_token = self._secret.secret_value_from_json("auth_token").to_string()
+
+
         self._cluster = elasticache.CfnReplicationGroup(
             self,
             "RedisCacheWithReplicas",
@@ -86,5 +102,10 @@ class RedisConstruct(Construct):
             auth_token=auth_token,
         )
         self._cluster.add_dependency(elasticache_subnet_group)
-        self._authenticated_url = f"redis://:{self._cluster.auth_token}@{self._cluster.attr_primary_end_point_address}:{self._cluster.attr_primary_end_point_port}/"
 
+        connection_string = f"redis://:{self._cluster.auth_token}@{self._cluster.attr_primary_end_point_address}:{self._cluster.attr_primary_end_point_port}/"
+        self._connection_string_secret = secretsmanager.Secret(
+            self, f"RedisConnectionStringSecret",
+            secret_name=f"redis-connection-string",
+            secret_string_value=cdk.SecretValue.unsafe_plain_text(connection_string)
+        )

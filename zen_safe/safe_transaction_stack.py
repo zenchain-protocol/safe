@@ -3,11 +3,11 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_ecs as ecs,
     aws_elasticloadbalancingv2 as elbv2,
-    aws_rds as rds,
     Stack,
 )
 from constructs import Construct
 
+from zen_safe.postgres_construct import PostgresDatabaseConstruct
 from zen_safe.rabbitmq_construct import RabbitMQConstruct
 from zen_safe.safe_shared_stack import SafeSharedStack
 from zen_safe.redis_construct import RedisConstruct
@@ -21,13 +21,12 @@ class SafeTransactionStack(Stack):
         construct_id: str,
         vpc: ec2.IVpc,
         shared_stack: SafeSharedStack,
-        database: rds.IDatabaseInstance,
-        tx_mq: RabbitMQConstruct,
         events_mq: RabbitMQConstruct,
-        redis_cluster: RedisConstruct,
         alb: elbv2.IApplicationLoadBalancer,
         chain_name: str,
         number_of_workers: int = 2,
+        cache_node_type: str = "cache.t3.small",
+        mq_node_type: str = "mq.t3.small",
         ssl_certificate_arn: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -41,6 +40,20 @@ class SafeTransactionStack(Stack):
             enable_fargate_capacity_providers=True,
             vpc=vpc,
         )
+
+        # Tx cache
+        self._tx_redis_cluster_mainnet = RedisConstruct(
+            self,
+            "RedisCluster",
+            vpc=vpc,
+            cache_node_type=cache_node_type
+        )
+
+        # Tx queue
+        self._tx_rabbit_mq = RabbitMQConstruct(self, "TxRabbitMQ", vpc=vpc, mq_node_type=mq_node_type)
+
+        # Tx db
+        self._tx_database = PostgresDatabaseConstruct(self, "TxDatabaseMainnet", vpc=vpc)
 
         container_args = {
             "image": ecs.ContainerImage.from_asset("docker/transactions"),
@@ -63,18 +76,10 @@ class SafeTransactionStack(Stack):
                 "DJANGO_SECRET_KEY": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, f"TX_DJANGO_SECRET_KEY_{formatted_chain_name}"
                 ),
-                "DATABASE_URL": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, f"TX_DATABASE_URL_{formatted_chain_name}"
-                ),
-                "CELERY_BROKER_URL": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, f"TX_MQ_URL_{formatted_chain_name}"
-                ),
-                "EVENTS_QUEUE_URL": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, f"EVENTS_MQ_URL"
-                ),
-                "REDIS_URL": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, f"TX_REDIS_URL_{formatted_chain_name}"
-                ),
+                "DATABASE_URL": ecs.Secret.from_secrets_manager(self._tx_database.connection_string_secret),
+                "CELERY_BROKER_URL": ecs.Secret.from_secrets_manager(self._tx_redis_cluster_mainnet.connection_string_secret),
+                "EVENTS_QUEUE_URL": ecs.Secret.from_secrets_manager(events_mq.connection_string_secret),
+                "REDIS_URL": ecs.Secret.from_secrets_manager(self._tx_redis_cluster_mainnet.connection_string_secret),
                 "ETHEREUM_NODE_URL": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, f"TX_ETHEREUM_NODE_URL_{formatted_chain_name}"
                 ),
@@ -252,12 +257,12 @@ class SafeTransactionStack(Stack):
             )
 
         for service in [web_service, worker_service, schedule_service]:
-            service.connections.allow_to(database, ec2.Port.tcp(5432), "RDS")
+            service.connections.allow_to(self._tx_database.database_instance, ec2.Port.tcp(5432), "RDS")
             service.connections.allow_to(
-                redis_cluster.connections, ec2.Port.tcp(6379), "Redis"
+                self._tx_redis_cluster_mainnet.connections, ec2.Port.tcp(6379), "Redis"
             )
             service.connections.allow_to(
-                tx_mq.connections, ec2.Port.tcp(5672), "RabbitMQTx"
+                self._tx_rabbit_mq.connections, ec2.Port.tcp(5672), "RabbitMQTx"
             )
             service.connections.allow_to(
                 events_mq.connections, ec2.Port.tcp(5672), "RabbitMQEvents"

@@ -3,23 +3,26 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_ecs as ecs,
     aws_elasticloadbalancingv2 as elbv2,
-    aws_rds as rds,
     Stack,
 )
 from constructs import Construct
 
+from zen_safe.postgres_construct import PostgresDatabaseConstruct
 from zen_safe.safe_shared_stack import SafeSharedStack
 from zen_safe.rabbitmq_construct import RabbitMQConstruct
 
 class SafeEventsStack(Stack):
+    @property
+    def events_mq(self):
+        return self._events_mq
+
     def __init__(
         self,
         scope: Construct,
         construct_id: str,
         vpc: ec2.IVpc,
         shared_stack: SafeSharedStack,
-        database: rds.IDatabaseInstance,
-        events_mq: RabbitMQConstruct,
+        mq_node_type: str = "mq.t3.small",
         ssl_certificate_arn: Optional[str] = None,
         **kwargs,
     ) -> None:
@@ -31,6 +34,12 @@ class SafeEventsStack(Stack):
             enable_fargate_capacity_providers=True,
             vpc=vpc,
         )
+
+        # Events queue
+        self._events_mq = RabbitMQConstruct(self, "EventsRabbitMQ", vpc=vpc, mq_node_type=mq_node_type)
+
+        # Events db
+        self._events_db = PostgresDatabaseConstruct(self, "EventsDatabase", vpc=vpc)
 
         container_args = {
             "image": ecs.ContainerImage.from_asset("docker/events"),
@@ -49,12 +58,8 @@ class SafeEventsStack(Stack):
                 "ADMIN_PASSWORD": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "EVENTS_ADMIN_PASSWORD"
                 ),
-                "AMQP_URL": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, "EVENTS_MQ_URL"
-                ),
-                "DATABASE_URL": ecs.Secret.from_secrets_manager(
-                    shared_stack.secrets, "EVENTS_DATABASE_URL"
-                ),
+                "AMQP_URL": ecs.Secret.from_secrets_manager(self._events_mq.connection_string_secret),
+                "DATABASE_URL": ecs.Secret.from_secrets_manager(self._events_db.connection_string_secret),
                 "SSE_AUTH_TOKEN": ecs.Secret.from_secrets_manager(
                     shared_stack.secrets, "EVENTS_SSE_AUTH_TOKEN"
                 ),
@@ -122,7 +127,7 @@ class SafeEventsStack(Stack):
             )
 
         for svc in [service]:
-            service.connections.allow_to(database, ec2.Port.tcp(5432), "RDS")
+            service.connections.allow_to(self._events_db.database_instance, ec2.Port.tcp(5432), "RDS")
             svc.connections.allow_to(
-                events_mq.connections, ec2.Port.tcp(5672), "RabbitMQEvents"
+                self._events_mq.connections, ec2.Port.tcp(5672), "RabbitMQEvents"
             )
