@@ -2,15 +2,14 @@ from typing import Optional, Sequence, Union
 from aws_cdk import (
     aws_s3 as s3,
     aws_s3_deployment as s3_deployment,
-    Stack,
-    RemovalPolicy,
+    RemovalPolicy, NestedStack,
 )
 from constructs import Construct
 
 from zen_safe.safe_shared_stack import SafeSharedStack
 
 
-class SafeUIStack(Stack):
+class SafeUIStack(NestedStack):
     def __init__(
         self,
         scope: Construct,

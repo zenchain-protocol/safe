@@ -4,14 +4,14 @@ from aws_cdk import (
     aws_ecs as ecs,
     aws_elasticloadbalancingv2 as elbv2,
     aws_rds as rds,
-    Stack,
+    NestedStack,
 )
 from constructs import Construct
 
 from zen_safe.safe_shared_stack import SafeSharedStack
 
 
-class SafeConfigurationStack(Stack):
+class SafeConfigurationStack(NestedStack):
     @property
     def alb(self):
         return self._alb

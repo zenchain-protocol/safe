@@ -63,21 +63,7 @@ class PostgresDatabaseConstruct(Construct):
         )
 
         # Construct the database connection URL
-        connection_string = Fn.join(
-            '',
-            [
-                "postgresql://",
-                self._credentials_secret.secret_value_from_json("username").unsafe_unwrap(),
-                ":",
-                self._credentials_secret.secret_value_from_json("password").unsafe_unwrap(),
-                "@",
-                self._database_instance.db_instance_endpoint_address,
-                ":",
-                self._database_instance.db_instance_endpoint_port,
-                "/",
-                database_name
-            ]
-        )
+        connection_string = f"postgresql://{self._credentials_secret.secret_value_from_json('username').unsafe_unwrap()}:{self._credentials_secret.secret_value_from_json('password').unsafe_unwrap()}@{self._database_instance.db_instance_endpoint_address}:{self._database_instance.db_instance_endpoint_port}/{database_name}"
 
         # Store the database URL in a *separate* Secrets Manager secret
         self._connection_string_secret = secretsmanager.Secret(

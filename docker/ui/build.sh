@@ -26,7 +26,7 @@ if [[ -z "$AWS_REGION" ]]; then
 fi
 
 # CGW
-export NEXT_PUBLIC_GATEWAY_URL_PRODUCTION=https://cgw.safe.host.zenchain.io
+export NEXT_PUBLIC_GATEWAY_URL_PRODUCTION=https://cgw.safe.zenchain.io
 # Production build
 export NEXT_PUBLIC_IS_PRODUCTION=true
 # Latest supported safe version, used for upgrade prompts
@@ -40,36 +40,37 @@ export NEXT_PUBLIC_IS_OFFICIAL_HOST=false
 #export NEXT_PUBLIC_INFURA_TOKEN=$(echo $SECRETS | jq -r .UI_INFURA_TOKEN | xargs)
 #export NEXT_PUBLIC_SAFE_APPS_INFURA_TOKEN=$(echo $SECRETS | jq -r .UI_SAFE_APPS_RPC_INFURA_TOKEN | xargs)
 
-while read -r LB_ARN DNS_NAME; do
-    IS_TX_MAINNET_LB=$(aws elbv2 describe-tags --resource-arns ${LB_ARN} --query "TagDescriptions[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']] && TagDescriptions[?Tags[?Key=='Name' && Value=='Safe Transaction Mainnet']]" --output text)
-    IS_CGW_LB=$(aws elbv2 describe-tags --resource-arns ${LB_ARN} --query "TagDescriptions[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']] && TagDescriptions[?Tags[?Key=='Name' && Value=='Safe Client Gateway']]" --output text)
-    echo
-
-    if [[ -n $IS_CGW_LB ]]; then
-        NEXT_PUBLIC_GATEWAY_URL_PRODUCTION="http://${DNS_NAME}"
-        printf "Setting Client Gateway URI ${ORANGE}${NEXT_PUBLIC_GATEWAY_URL_PRODUCTION}${NC}"
-    fi
-done <<< "$(aws elbv2 describe-load-balancers --query "LoadBalancers[].{ID:LoadBalancerArn,NAME:DNSName}" --output text)"
-
-printf "\n"
-
-if [[ -z NEXT_PUBLIC_GATEWAY_URL_PRODUCTION ]]; then
-    echo "NEXT_PUBLIC_GATEWAY_URL_PRODUCTION not found" 1>&2
-    exit 1
-fi
+#while read -r LB_ARN DNS_NAME; do
+#    IS_TX_MAINNET_LB=$(aws elbv2 describe-tags --resource-arns ${LB_ARN} --query "TagDescriptions[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']] && TagDescriptions[?Tags[?Key=='Name' && Value=='Safe Transaction Mainnet']]" --output text)
+#    IS_CGW_LB=$(aws elbv2 describe-tags --resource-arns ${LB_ARN} --query "TagDescriptions[?Tags[?Key=='environment' && Value=='${ENVIRONMENT_NAME}']] && TagDescriptions[?Tags[?Key=='Name' && Value=='Safe Client Gateway']]" --output text)
+#    echo
+#
+#    if [[ -n $IS_CGW_LB ]]; then
+#        NEXT_PUBLIC_GATEWAY_URL_PRODUCTION="http://${DNS_NAME}"
+#        printf "Setting Client Gateway URI ${ORANGE}${NEXT_PUBLIC_GATEWAY_URL_PRODUCTION}${NC}"
+#    fi
+#done <<< "$(aws elbv2 describe-load-balancers --query "LoadBalancers[].{ID:LoadBalancerArn,NAME:DNSName}" --output text)"
+#
+#printf "\n"
+#
+#if [[ -z NEXT_PUBLIC_GATEWAY_URL_PRODUCTION ]]; then
+#    echo "NEXT_PUBLIC_GATEWAY_URL_PRODUCTION not found" 1>&2
+#    exit 1
+#fi
 
 export PUBLIC_URL="/"
 
 printf "${WRENCH} ${GREEN}Building UI${NC}\n"
 
 printf "${WRENCH} ${GREEN}Creating an optimized production build...${NC}\n"
-yarn --cwd safe-wallet-monorepo/apps/web install
+yarn --cwd safe-wallet-monorepo/apps/web install --immutable
+yarn --cwd safe-wallet-monorepo/apps/web after-install
 yarn --cwd safe-wallet-monorepo/apps/web build
 
 printf "${FOLDERS} ${GREEN}Moving UI build for docker${NC}\n"
 BUILD_DIRECTORY=build_${ENVIRONMENT_NAME}
 rm -rf ./builds/${BUILD_DIRECTORY}
-mv ./safe-wallet-monorepo/apps/web/build ./builds/${BUILD_DIRECTORY}
+mv ./safe-wallet-monorepo/apps/web/out ./builds/${BUILD_DIRECTORY}
 
 printf "${FOLDERS} ${GREEN}Reverting configuration changes${NC}\n"
 git submodule foreach git reset --hard

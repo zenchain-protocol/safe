@@ -91,6 +91,6 @@ class ZenSafeStack(Stack):
             subdomain_name=ui_subdomain,
             allowed_origins=[
                 "https://safe.zenchain.io",
-                "https://tx.safe.zenchain.io"
+                "https://txs.safe.zenchain.io"
             ],
         )

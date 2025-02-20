@@ -6,12 +6,11 @@ from aws_cdk import (
     aws_elasticloadbalancingv2 as elbv2,
     aws_logs as logs,
     aws_secretsmanager as secretsmanager,
-    Stack,
-    Tags,
+    Tags, NestedStack,
 )
 from constructs import Construct
 
-class SafeSharedStack(Stack):
+class SafeSharedStack(NestedStack):
 
     @property
     def log_group(self):
@@ -54,7 +53,6 @@ class SafeSharedStack(Stack):
                     {
                         # Mainnet
                         "TX_DJANGO_SECRET_KEY_MAINNET": os.getenv("TX_DJANGO_SECRET_KEY_MAINNET"),
-                        "TX_DATABASE_URL_MAINNET": os.getenv("TX_DATABASE_URL_MAINNET") or "",
                         "TX_ETHEREUM_NODE_URL_MAINNET": os.getenv("TX_ETHEREUM_NODE_URL_MAINNET"),
                         "TX_ETHEREUM_TRACING_NODE_URL_MAINNET": os.getenv("TX_ETHEREUM_TRACING_NODE_URL_MAINNET"),
                         "TX_ETHERSCAN_API_KEY_MAINNET": os.getenv("TX_ETHERSCAN_API_KEY_MAINNET"),
@@ -69,7 +67,6 @@ class SafeSharedStack(Stack):
                         "CGW_PRICES_PROVIDER_API_KEY": os.getenv("CGW_PRICES_PROVIDER_API_KEY"),
                         "CGW_REDIS_PASS": os.getenv("CGW_REDIS_PASS"),
                         # Events
-                        "EVENTS_DATABASE_URL": os.getenv("EVENTS_DATABASE_URL") or "",
                         "EVENTS_ADMIN_EMAIL": os.getenv("EVENTS_ADMIN_EMAIL"),
                         "EVENTS_ADMIN_PASSWORD": os.getenv("EVENTS_ADMIN_PASSWORD"),
                         "EVENTS_SSE_AUTH_TOKEN": os.getenv("EVENTS_SSE_AUTH_TOKEN"),

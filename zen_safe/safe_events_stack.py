@@ -3,7 +3,7 @@ from aws_cdk import (
     aws_ec2 as ec2,
     aws_ecs as ecs,
     aws_elasticloadbalancingv2 as elbv2,
-    Stack,
+    NestedStack,
 )
 from constructs import Construct
 
@@ -11,7 +11,7 @@ from zen_safe.postgres_construct import PostgresDatabaseConstruct
 from zen_safe.safe_shared_stack import SafeSharedStack
 from zen_safe.rabbitmq_construct import RabbitMQConstruct
 
-class SafeEventsStack(Stack):
+class SafeEventsStack(NestedStack):
     @property
     def events_mq(self):
         return self._events_mq
