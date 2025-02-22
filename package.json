@@ -6,7 +6,9 @@
   "author": "",
   "license": "ISC",
   "scripts": {
-    "build:ui": "cd docker/ui && CDK_DEFAULT_ACCOUNT=637423562725 CDK_DEFAULT_REGION=us-east-1 ENVIRONMENT_NAME='production' AWS_PROFILE='default' ./build.sh"
+    "build:ui": "cd docker/ui && CDK_DEFAULT_ACCOUNT=637423562725 CDK_DEFAULT_REGION=us-east-1 ENVIRONMENT_NAME='production' AWS_PROFILE='default' ./build.sh",,
+    "synth": "cdk synth",
+    "deploy": "cdk deploy --all --require-approval never"
   },
   "devDependencies": {
     "aws-cdk": "latest"
